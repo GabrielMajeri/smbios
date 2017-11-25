@@ -32,6 +32,9 @@
 #![deny(missing_docs)]
 #![cfg_attr(feature = "cargo-clippy", deny(clippy))]
 
+#[macro_use]
+extern crate bitflags;
+
 /// Entry point available in SMBIOS 2.1+, only supports 32-bit addresses.
 #[derive(Debug, Copy, Clone)]
 #[repr(C, packed)]
@@ -136,4 +139,91 @@ pub enum Type {
     MemoryArrayMappedAddress = 19,
     /// Information about the boot process.
     SystemBootInformation = 32,
+}
+
+/// BIOS information structure.
+///
+/// This structure has a variable size byte array at the end,
+/// you should go to the `length - 18 bytes` offset and also parse
+/// the `BiosInformationTail` structure.
+#[derive(Debug, Copy, Clone)]
+#[repr(C, packed)]
+pub struct BiosInformation {
+    /// Common header.
+    pub header: Header,
+    /// BIOS vendor.
+    pub vendor: StringRef,
+    /// Free-form BIOS version.
+    pub version: StringRef,
+    /// The segment of the BIOS's starting address.
+    pub starting_address_segment: u16,
+    /// Release date of BIOS, in mm/dd/yyyy format.
+    pub release_date: StringRef,
+    /// Size of BIOS ROM, in multiples of 64 KiB.
+    /// Setting to 255 means size is >= 16 MiB.
+    pub rom_size: u8,
+    /// BIOS characteristics.
+    pub characteristics: BiosCharacteristics,
+    /// Extended characteristic bytes.
+    ///
+    /// This has a variable size, and after it comes
+    /// the `BiosInformationTail` structure.
+    ///
+    /// This field and all fields after it are supported by SMBIOS 2.4+ only.
+    ///
+    /// The current spec only defines the values of the first 2 bytes of this field.
+    pub extended_chrs: BiosExtendedCharacteristics,
+}
+
+/// Tail of the BIOS information structure.
+///
+/// Guaranteed to be at the offset `length - 18` bytes
+/// from the start of the information structure.
+#[derive(Debug, Copy, Clone)]
+#[repr(C, packed)]
+pub struct BiosInformationTail {
+    /// BIOS version in major / minor format.
+    ///
+    /// These values are both 255 if this field is not supported.
+    pub version: (u8, u8),
+    /// Embedded controller version in major / minor format.
+    ///
+    /// Both values are 255 if no embedded controller is present.
+    pub ec_version: (u8, u8),
+    /// Extended BIOS size.
+    ///
+    /// Only supported by SMBIOS 3.1+.
+    ///
+    /// Unit is determined by top-two bits: 00 means MiB, 01 means GiB.
+    pub size: u16,
+}
+
+bitflags! {
+    /// BIOS characteristics.
+    ///
+    /// See the spec for more information.
+    pub struct BiosCharacteristics: u64 {
+        /// Set if BIOS characteristics are not supported.
+        const NOT_SUPPORTED = 1 << 3;
+        /// PCI is supported.
+        const PCI = 1 << 7;
+        /// Plug-and-Play BIOS.
+        const PNP = 1 << 9;
+    }
+}
+
+bitflags! {
+    /// Extended BIOS characteristics.
+    pub struct BiosExtendedCharacteristics: u16 {
+        /// ACPI support.
+        const ACPI = 1 << 0;
+        /// Legacy USB support (emulate USB keyboard as PS/2 keyboard).
+        const USB_LEGACY = 1 << 1;
+        /// Smart Battery support.
+        const SMART_BATTERY = 1 << 7;
+        /// UEFI firmware supported.
+        const UEFI = 1 << 11;
+        /// Running in a virtual machine.
+        const VIRTUAL_MACHINE = 1 << 12;
+    }
 }
