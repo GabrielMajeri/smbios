@@ -28,7 +28,6 @@
 //! At the end of this string area is a double NULL-terminator.
 
 #![no_std]
-
 #![deny(missing_docs)]
 #![cfg_attr(feature = "cargo-clippy", deny(clippy))]
 
